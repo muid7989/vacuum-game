@@ -15,19 +15,24 @@ const GRID_W = 64;
 const GRID_BASE_X = GRID_SIZE*2;
 const GRID_BASE_Y = GRID_SIZE*4;
 const PLAYER_H = GRID_SIZE;
-const PLAYER_W = GRID_SIZE*2;
+const PLAYER_W = GRID_SIZE;
+const PLAYER_MAX_X = GRID_SIZE*12;
+const PLAYER_MIN_X = GRID_SIZE*2;
+const PLAYER_MAX_Y = GRID_SIZE*12;
+const PLAYER_MIN_Y = GRID_SIZE*2;
 const PLAYER_X = CANVAS_W/2;
-const PLAYER_Y = GRID_SIZE*15;
+const PLAYER_Y = PLAYER_MAX_Y;
 const PLAYER_SPEED = 1;
-const BALL_SIZE = GRID_SIZE/2;
-const BALL_NUM = 100;
+const BALL_SIZE = GRID_SIZE/12;
+const BALL_NUM = 300;
 const BALL_MIN_X = GRID_SIZE*2;
 const BALL_MIN_Y = GRID_SIZE*2;
 const BALL_MAX_X = GRID_SIZE*12;
 const BALL_MAX_Y = GRID_SIZE*11;
 const BALL_SPEED_AT = 0.9;
 const JOYSTICK_Y = PLAYER_Y;
-const VACUUM_RANGE = GRID_SIZE*2;
+const VACUUM_RANGE = PLAYER_W*1.5;
+const VACUUM_P = 0.01;
 
 let gui;
 let startButton;
@@ -57,6 +62,15 @@ function startFn() {
 	startButton.visible = false;
 	getCount = 0;
 	ballCount = 0;
+	ballInit();
+	playerInit();
+}
+function playerInit() {
+	player = {};
+	player.pos = {};
+	player.pos.x = PLAYER_X;
+	player.pos.y = PLAYER_Y;
+	player.angle = -PI/2;
 }
 function ballInit() {
 	balls = [];
@@ -76,12 +90,8 @@ function ballInit() {
 function setup() {
 	createCanvas(CANVAS_W, CANVAS_H);
 	time = millis();
-	player = {};
-	player.pos = {};
-	player.pos.x = PLAYER_X;
-	player.pos.y = PLAYER_Y;
-	player.angle = PI*3/2;
-	ballInit();
+//	ballInit();
+	playerInit();
 	rectMode(CENTER);
 
 	gui = createGui();
@@ -97,15 +107,6 @@ function setup() {
 function buttonInit(text, w, h, x, y) {
 	let button = createButton(text, x, y, w, h);
 	return button;
-}
-function hitDetect(tx, ty, tw, th, bx, by) {
-	if (bx<tx-tw/2 || bx>tx+tw/2){
-		return false;
-	}
-	if (by<ty-th/2 || by>ty+tw/2){
-		return false;
-	}
-	return true;
 }
 function draw() {
 	background(48);
@@ -126,43 +127,49 @@ function draw() {
 			line(i*GRID_SIZE, 0, i*GRID_SIZE, CANVAS_H);
 		}
 	}
-	let tBalls = [];
-	for (let i=0; i<balls.length; i++){
-		balls[i].pos.x += balls[i].speed.x;
-		balls[i].pos.y += balls[i].speed.y;
-		balls[i].speed.x *= BALL_SPEED_AT;
-		balls[i].speed.y *= BALL_SPEED_AT;
-		const d = dist(balls[i].pos.x, balls[i].pos.y, player.pos.x, player.pos.y);
-		if (d<=(PLAYER_W+BALL_SIZE)/2){
+	if (startFlag){
+		let tBalls = [];
+		for (let i=0; i<balls.length; i++){
+			balls[i].pos.x += balls[i].speed.x;
+			balls[i].pos.y += balls[i].speed.y;
+			balls[i].speed.x *= BALL_SPEED_AT;
+			balls[i].speed.y *= BALL_SPEED_AT;
+			const d = dist(balls[i].pos.x, balls[i].pos.y, player.pos.x, player.pos.y);
+			if (d<=(PLAYER_W+BALL_SIZE)/2){
 
-		}else{
-			if (d<=VACUUM_RANGE){
-//				balls[i].speed.x = 
+			}else{
+				if (d<=VACUUM_RANGE){
+					const sp = (VACUUM_RANGE-d)*VACUUM_P;
+					balls[i].speed.x += sp*(player.pos.x-balls[i].pos.x)/d;
+					balls[i].speed.y += sp*(player.pos.y-balls[i].pos.y)/d;
+				}
+				circle(balls[i].pos.x, balls[i].pos.y, BALL_SIZE);
+				tBalls.push(balls[i]);
 			}
-			circle(balls[i].pos.x, balls[i].pos.y, BALL_SIZE);
-			tBalls.push(balls[i]);
 		}
-	}
-	balls = tBalls;
-	player.angle += joystick.valX/10;
-/*
-	push();
-	translate(player.pos.x, player.pos.y);
-	rotate(player.angle);
-	rect(0, 0, PLAYER_W, PLAYER_H);
-	pop();
-*/
-	player.pos.x += cos(player.angle)*PLAYER_SPEED;
-	player.pos.y += sin(player.angle)*PLAYER_SPEED;
-	noFill();
-	strokeWeight(3);
-	stroke(255);
-	circle(player.pos.x, player.pos.y, PLAYER_W);
-	strokeWeight(1);
-	stroke(255);
-	fill(255);
-	textSize(64);
-	if (startFlag==false){
+		balls = tBalls;
+		if (balls.length==0){
+			startFlag = false;
+			startButton.visible = true;
+		}
+		player.angle += joystick.valX/10;
+		player.pos.x += cos(player.angle)*PLAYER_SPEED;
+		player.pos.y += sin(player.angle)*PLAYER_SPEED;
+		if ((player.pos.x>PLAYER_MAX_X) || (player.pos.x<PLAYER_MIN_X)){
+			player.angle = PI-player.angle;
+		}
+		if ((player.pos.y>PLAYER_MAX_Y) || (player.pos.y<PLAYER_MIN_Y)){
+			player.angle = -player.angle;
+		}
+		noFill();
+		strokeWeight(3);
+		stroke(255);
+		circle(player.pos.x, player.pos.y, PLAYER_W);
+	}else{
+		strokeWeight(1);
+		stroke(255);
+		fill(255);
+		textSize(64);
 		textAlign(CENTER);
 		text(getCount, CANVAS_W/2, GRID_SIZE*2);
 	}
@@ -174,4 +181,5 @@ function draw() {
 	let debugY = DEBUG_VIEW_Y;
 	text('fps:'+fps, DEBUG_VIEW_X, debugY);
 	debugY += DEBUG_VIEW_H;
+	text('angle:'+int(player.angle/PI*10), DEBUG_VIEW_X, debugY);
 }
