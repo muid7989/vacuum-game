@@ -31,8 +31,10 @@ const BALL_MAX_X = GRID_SIZE*12;
 const BALL_MAX_Y = GRID_SIZE*11;
 const BALL_SPEED_AT = 0.9;
 const JOYSTICK_Y = PLAYER_Y;
-const VACUUM_RANGE = PLAYER_W*1.5;
+const HOLE_SIZE = GRID_SIZE/2;
+const VACUUM_RANGE = HOLE_SIZE*2;
 const VACUUM_P = 0.01;
+const ARM_LENGTH = PLAYER_W*1;
 
 let gui;
 let startButton;
@@ -128,30 +130,6 @@ function draw() {
 		}
 	}
 	if (startFlag){
-		let tBalls = [];
-		for (let i=0; i<balls.length; i++){
-			balls[i].pos.x += balls[i].speed.x;
-			balls[i].pos.y += balls[i].speed.y;
-			balls[i].speed.x *= BALL_SPEED_AT;
-			balls[i].speed.y *= BALL_SPEED_AT;
-			const d = dist(balls[i].pos.x, balls[i].pos.y, player.pos.x, player.pos.y);
-			if (d<=(PLAYER_W+BALL_SIZE)/2){
-
-			}else{
-				if (d<=VACUUM_RANGE){
-					const sp = (VACUUM_RANGE-d)*VACUUM_P;
-					balls[i].speed.x += sp*(player.pos.x-balls[i].pos.x)/d;
-					balls[i].speed.y += sp*(player.pos.y-balls[i].pos.y)/d;
-				}
-				circle(balls[i].pos.x, balls[i].pos.y, BALL_SIZE);
-				tBalls.push(balls[i]);
-			}
-		}
-		balls = tBalls;
-		if (balls.length==0){
-			startFlag = false;
-			startButton.visible = true;
-		}
 		player.angle += joystick.valX/10;
 		player.pos.x += cos(player.angle)*PLAYER_SPEED;
 		player.pos.y += sin(player.angle)*PLAYER_SPEED;
@@ -161,17 +139,48 @@ function draw() {
 		if ((player.pos.y>PLAYER_MAX_Y) || (player.pos.y<PLAYER_MIN_Y)){
 			player.angle = -player.angle;
 		}
-		noFill();
+		fill(255);
 		strokeWeight(3);
 		stroke(255);
 		circle(player.pos.x, player.pos.y, PLAYER_W);
+		const holeX = player.pos.x + cos(player.angle)*ARM_LENGTH;
+		const holeY = player.pos.y + sin(player.angle)*ARM_LENGTH;
+		noFill();
+		circle(holeX, holeY, HOLE_SIZE);
+		let tBalls = [];
+		fill(255);
+		noStroke();
+		for (let i=0; i<balls.length; i++){
+			balls[i].pos.x += balls[i].speed.x;
+			balls[i].pos.y += balls[i].speed.y;
+			balls[i].speed.x *= BALL_SPEED_AT;
+			balls[i].speed.y *= BALL_SPEED_AT;
+			const d = dist(balls[i].pos.x, balls[i].pos.y, holeX, holeY);
+			if (d<=(HOLE_SIZE+BALL_SIZE)/2){
+
+			}else{
+				if (d<=VACUUM_RANGE){
+					const sp = (VACUUM_RANGE-d)*VACUUM_P;
+					balls[i].speed.x += sp*(holeX-balls[i].pos.x)/d;
+					balls[i].speed.y += sp*(holeY-balls[i].pos.y)/d;
+				}
+				circle(balls[i].pos.x, balls[i].pos.y, BALL_SIZE);
+				tBalls.push(balls[i]);
+			}
+		}
+		balls = tBalls;
+		if (balls.length==0){
+			startFlag = false;
+			startButton.visible = true;
+			endTime = (millis() - startTime)/1000;
+		}
 	}else{
 		strokeWeight(1);
 		stroke(255);
 		fill(255);
 		textSize(64);
 		textAlign(CENTER);
-		text(getCount, CANVAS_W/2, GRID_SIZE*2);
+		text(endTime.toFixed(1)+' sec', CANVAS_W/2, GRID_SIZE*3);
 	}
 	drawGui();
 	fill(255);
@@ -181,5 +190,4 @@ function draw() {
 	let debugY = DEBUG_VIEW_Y;
 	text('fps:'+fps, DEBUG_VIEW_X, debugY);
 	debugY += DEBUG_VIEW_H;
-	text('angle:'+int(player.angle/PI*10), DEBUG_VIEW_X, debugY);
 }
